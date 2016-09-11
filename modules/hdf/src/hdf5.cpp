@@ -33,7 +33,7 @@
  *********************************************************************/
 
 #include "precomp.hpp"
-
+#include <H5Include.h>
 
 
 using namespace std;
