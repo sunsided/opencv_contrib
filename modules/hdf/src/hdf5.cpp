@@ -300,7 +300,7 @@ vector<int> HDF5Impl::dsgetsize( String dslabel, int dims_flag ) const
     int n_dims = H5Sget_simple_extent_ndims( fspace );
 
     // fetch dims
-    hsize_t dsdims[n_dims];
+    hsize_t *dsdims = new hsize_t[n_dims];
     if ( dims_flag == H5_GETDIMS )
       H5Sget_simple_extent_dims( fspace, dsdims, NULL );
     else
@@ -313,6 +313,8 @@ vector<int> HDF5Impl::dsgetsize( String dslabel, int dims_flag ) const
 
     H5Dclose( dsdata );
     H5Sclose( fspace );
+
+    delete dsdims;
 
     return SizeVect;
 }
@@ -392,9 +394,9 @@ void HDF5Impl::dscreate( const int n_dims, const int* sizes, const int type,
 
     int channs = CV_MAT_CN( type );
 
-    hsize_t chunks[n_dims];
-    hsize_t dsdims[n_dims];
-    hsize_t maxdim[n_dims];
+    hsize_t *chunks = new hsize_t[n_dims];
+    hsize_t *dsdims = new hsize_t[n_dims];
+    hsize_t *maxdim = new hsize_t[n_dims];
 
     // dimension space
     for ( int d = 0; d < n_dims; d++ )
@@ -440,7 +442,7 @@ void HDF5Impl::dscreate( const int n_dims, const int* sizes, const int type,
     // expand channs
     if ( channs > 1 )
     {
-      hsize_t adims[1] = { channs };
+      hsize_t adims[1] = { (hsize_t)channs };
       dstype = H5Tarray_create( dstype, 1, adims );
     }
 
@@ -450,6 +452,10 @@ void HDF5Impl::dscreate( const int n_dims, const int* sizes, const int type,
 
     if ( channs > 1 )
       H5Tclose( dstype );
+
+    delete chunks;
+    delete dsdims;
+    delete maxdim;
 
     H5Pclose( dsdcpl );
     H5Sclose( dspace );
@@ -500,7 +506,7 @@ void HDF5Impl::dsread( OutputArray Array, String dslabel,
     int n_dims = H5Sget_simple_extent_ndims( fspace );
 
     // fetch dims
-    hsize_t dsdims[n_dims];
+    hsize_t *dsdims = new hsize_t[n_dims];
     H5Sget_simple_extent_dims( fspace, dsdims, NULL );
 
     // set amount by custom offset
@@ -518,8 +524,8 @@ void HDF5Impl::dsread( OutputArray Array, String dslabel,
     }
 
     // get memory write window
-    int mxdims[n_dims];
-    hsize_t foffset[n_dims];
+    int *mxdims = new int[n_dims];
+    hsize_t *foffset = new hsize_t[n_dims];
     for ( int d = 0; d < n_dims; d++ )
     {
       foffset[d] = 0;
@@ -551,6 +557,10 @@ void HDF5Impl::dsread( OutputArray Array, String dslabel,
     Mat matrix = Array.getMat();
     H5Dread( dsdata, dstype, dspace, fspace, H5P_DEFAULT, matrix.data );
 
+    delete dsdims;
+    delete mxdims;
+    delete foffset;
+
     H5Tclose( dstype );
     H5Sclose( dspace );
     H5Sclose( fspace );
@@ -579,9 +589,9 @@ void HDF5Impl::dswrite( InputArray Array, String dslabel,
     int n_dims = matrix.dims;
     int channs = matrix.channels();
 
-    int dsizes[n_dims];
-    hsize_t dsdims[n_dims];
-    hsize_t offset[n_dims];
+    int *dsizes = new int[n_dims];
+    hsize_t *dsdims = new hsize_t[n_dims];
+    hsize_t *offset = new hsize_t[n_dims];
     // replicate Mat dimensions
     for ( int d = 0; d < n_dims; d++ )
     {
@@ -625,7 +635,7 @@ void HDF5Impl::dswrite( InputArray Array, String dslabel,
     // expand channs
     if ( matrix.channels() > 1 )
     {
-      hsize_t adims[1] = { channs };
+      hsize_t adims[1] = { (hsize_t)channs };
       dstype = H5Tarray_create( dstype, 1, adims );
     }
 
@@ -635,6 +645,10 @@ void HDF5Impl::dswrite( InputArray Array, String dslabel,
 
     if ( matrix.channels() > 1 )
       H5Tclose( dstype );
+
+    delete dsizes;
+    delete dsdims;
+    delete offset;
 
     H5Sclose( dspace );
     H5Sclose( fspace );
@@ -667,8 +681,8 @@ void HDF5Impl::dsinsert( InputArray Array, String dslabel,
     int n_dims = matrix.dims;
     int channs = matrix.channels();
 
-    hsize_t dsdims[n_dims];
-    hsize_t offset[n_dims];
+    hsize_t *dsdims = new hsize_t[n_dims];
+    hsize_t *offset = new hsize_t[n_dims];
     // replicate Mat dimensions
     for ( int d = 0; d < n_dims; d++ )
     {
@@ -702,14 +716,14 @@ void HDF5Impl::dsinsert( InputArray Array, String dslabel,
     // get actual file space and dims
     hid_t fspace = H5Dget_space( dsdata );
     int f_dims = H5Sget_simple_extent_ndims( fspace );
-    hsize_t fsdims[f_dims];
+    hsize_t *fsdims = new hsize_t[f_dims];
     H5Sget_simple_extent_dims( fspace, fsdims, NULL );
     H5Sclose( fspace );
 
     CV_Assert( f_dims == n_dims );
 
     // compute new extents
-    hsize_t nwdims[n_dims];
+    hsize_t *nwdims = new hsize_t[n_dims];
     for ( int d = 0; d < n_dims; d++ )
     {
       // init
@@ -743,7 +757,7 @@ void HDF5Impl::dsinsert( InputArray Array, String dslabel,
     // expand channs
     if ( matrix.channels() > 1 )
     {
-      hsize_t adims[1] = { channs };
+      hsize_t adims[1] = { (hsize_t)channs };
       dstype = H5Tarray_create( dstype, 1, adims );
     }
 
@@ -753,6 +767,11 @@ void HDF5Impl::dsinsert( InputArray Array, String dslabel,
 
     if ( matrix.channels() > 1 )
       H5Tclose( dstype );
+
+    delete dsdims;
+    delete offset;
+    delete fsdims;
+    delete nwdims;
 
     H5Sclose( dspace );
     H5Sclose( fspace );
@@ -850,16 +869,18 @@ void HDF5Impl::kpwrite( const vector<KeyPoint> keypoints, String kplabel,
 {
     CV_Assert( keypoints.size() > 0 );
 
+    int dskdims[1];
     hsize_t dsddims[1];
     hsize_t doffset[1];
 
     // replicate vector dimension
     doffset[0] = 0;
     dsddims[0] = keypoints.size();
+    dskdims[0] = (int)keypoints.size();
 
     // pre-create dataset if needed
     if ( hlexists( kplabel ) == false )
-      kpcreate( dsddims[0], kplabel );
+      kpcreate(dskdims[0], kplabel);
 
     // set custom amount of data
     if ( counts != H5_NONE )
@@ -932,7 +953,7 @@ void HDF5Impl::kpinsert( const vector<KeyPoint> keypoints, String kplabel,
     // get actual file space and dims
     hid_t fspace = H5Dget_space( dsdata );
     int f_dims = H5Sget_simple_extent_ndims( fspace );
-    hsize_t fsdims[f_dims];
+    hsize_t *fsdims = new hsize_t[f_dims];
     H5Sget_simple_extent_dims( fspace, fsdims, NULL );
     H5Sclose( fspace );
 
@@ -974,6 +995,8 @@ void HDF5Impl::kpinsert( const vector<KeyPoint> keypoints, String kplabel,
 
     // write into dataset
     H5Dwrite( dsdata, mmtype, dspace, fspace, H5P_DEFAULT, &keypoints[0] );
+
+    delete fsdims;
 
     H5Tclose( mmtype );
     H5Sclose( dspace );
